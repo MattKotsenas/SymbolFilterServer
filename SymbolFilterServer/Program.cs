@@ -5,7 +5,7 @@
         public static void Main(string[] args)
         {
             var arguments = new ArgumentsParser().Parse(args);
-            var server = new SymbolFilterServer(arguments);
+            var server = new SymbolFilterServer(arguments, new RedirectParser());
             server.Run();
         }
     }

@@ -11,15 +11,15 @@ namespace SymbolFilterServer
     internal class SymbolFilterServer
     {
         private readonly Arguments _args;
-        private readonly RedirectParser _redirectParser = new RedirectParser();
+        private readonly IEnumerable<string> _symbolFilterList; // The allowed PDBs we do *not* ignore
+        private readonly RedirectParser _redirectParser;
 
-        // The allowed PDBs we do *not* ignore
-        private readonly IReadOnlyList<string> _dllFilterList; // TODO: Move this to IEnumerable
 
-        public SymbolFilterServer(Arguments args)
+        public SymbolFilterServer(Arguments args, RedirectParser parser)
         {
             _args = args;
-            _dllFilterList = _args.Symbols.ToList();
+            _symbolFilterList = _args.Symbols.ToList();
+            _redirectParser = parser;
         }
 
         internal void Run()
@@ -36,60 +36,48 @@ namespace SymbolFilterServer
         {
             await Task.Run(() =>
             {
-                var request = context.Request;
-                var req = request.Path;
+                if (context.Request.Method != "GET") { Respond404(context.Response); }
 
-                // avoid case sensitivity issues for matching the pattern
-                var reqLower = Uri.UnescapeDataString(req).ToLowerInvariant();
+                var path = context.Request.Path.ToString();
 
-                int i;
-                for (i = 0; i < _dllFilterList.Count; i++)
-                {
-                    if (reqLower.Contains(_dllFilterList[i]))
-                        break;
-                }
+                // Avoid case sensitivity issues for matching the pattern
+                path = Uri.UnescapeDataString(path).ToLowerInvariant();
 
-                // if we didn't match, or it isn't a GET then serve up a 404
-                if (i == _dllFilterList.Count || request.Method != "GET")
+                foreach (var symbol in _symbolFilterList)
                 {
-                    // you don't match, fast exit, this is basically the whole point of this thing
-                    Return404(context);
+                    if (path.Contains(symbol))
+                    {
+                        Console.WriteLine("Matched pattern: {0}", symbol);
+                        MaybeRedirect(context.Response, path);
+                        return;
+                    }
                 }
-                else
-                {
-                    // this is the real work
-                    Console.WriteLine("Matched pattern: {0}", _dllFilterList[i]);
-                    RedirectRequest(context, req);
-                }
+                Respond404(context.Response);
             });
         }
 
-        // cons up a minimal 404 error and return it
-        private void Return404(HttpContext context)
+        private void Respond404(HttpResponse response)
         {
-            // it doesn't get any simpler than this
-            context.Response.StatusCode = 404;
+            response.StatusCode = 404;
         }
 
-        private void Return302(HttpContext context, string url)
+        private void Respond302(HttpResponse response, string url)
         {
             Console.WriteLine("302 Redirect {0}", url);
-
-            // emit the redirect
-            context.Response.Redirect(url, false);
+            response.Redirect(url, false);
         }
 
-        private void RedirectRequest(HttpContext context, string req)
+        private void MaybeRedirect(HttpResponse response, string req)
         {
             var result = _redirectParser.Parse(req);
 
             if (result.IsValid)
             {
-                Return302(context, result.Redirect);
+                Respond302(response, result.Redirect);
             }
             else
             {
-                Return404(context);
+                Respond404(response);
             }
         }
     }
