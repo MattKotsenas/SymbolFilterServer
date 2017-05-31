@@ -1,21 +1,16 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Text;
 using System.IO;
-using System.Linq;
-using System.Net;
-using System.Net.Sockets;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
 
-namespace SymbolFilter
+namespace SymbolFilterServer
 {
-    class FilterProxy
+    class SymbolFilterServer
     {
-        // we'll accept connections using this listener
-        static TcpListener listener;
+        private static readonly RedirectParser RedirectParser = new RedirectParser();
 
         // this holds the white list of DLLs we do not ignore
         static List<string> dllFilterList = new List<string>();
@@ -120,23 +115,16 @@ namespace SymbolFilter
 
         static void RedirectRequest(HttpContext context, string req)
         {
-            string request = req.Substring(1); // strip off the "/"
+            var result = RedirectParser.Parse(req);
 
-            // we're looking for the server that we are supposed to use for this request in our path
-            // the point of this is to make it so that you can set your symbol path to include
-            // http://localhost:8080/http://your-sym-server/whatever
-            // and your-sym-server will be used by the proxy
-            int delim = request.IndexOf('/', 1);
-
-            // if there is no server specified then we're done
-            if (delim < 0)
+            if (result.IsValid)
             {
-                // serve up an error
-                Return404(context);
-                return;
+                Return302(context, result.Redirect);
             }
-
-            Return302(context, request);
+            else
+            {
+                Return404(context);
+            }
         }
     }
 }
