@@ -10,25 +10,21 @@ namespace SymbolFilterServer
 {
     class SymbolFilterServer
     {
+        private static readonly ArgumentsParser ArgumentsParser = new ArgumentsParser();
         private static readonly RedirectParser RedirectParser = new RedirectParser();
 
         // this holds the white list of DLLs we do not ignore
         static List<string> dllFilterList = new List<string>();
 
-        // default port is 8080, config would be nice...
-        const int port = 8080;
-
         static void Main(string[] args)
         {
+            var arguments = ArgumentsParser.Parse(args);
+
             // load up the dlls
             InitializeDllFilters();
 
             // open the socket
-            StartHttpListener();
-
-            // all real work happens in the background, if you ever press enter we just exit
-            Console.WriteLine("Listening on port {0}.  Press enter to exit", port);
-            Console.ReadLine();
+            StartHttpListener(arguments.Port);
         }
 
         static void InitializeDllFilters()
@@ -59,11 +55,14 @@ namespace SymbolFilterServer
         // Here we will just listen for connections on the loopback adapter, port 8080
         // this could really use some configuration options as well.  In fact running more than one of these
         // listening to different ports with different white lists would be very useful.
-        public static void StartHttpListener()
+        public static void StartHttpListener(int port)
         {
-            new WebHostBuilder().UseKestrel().Configure(app => app.Run(handler =>
-                Request(handler)
-            )).Build().Run();
+            new WebHostBuilder()
+                .UseKestrel()
+                .Configure(app => app.Run(Request))
+                .UseUrls($"http://localhost:{port}")
+                .Build()
+                .Run();
         }
 
         static async Task Request(HttpContext context)
