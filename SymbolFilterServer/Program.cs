@@ -1,6 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.IO;
+using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
@@ -13,43 +13,16 @@ namespace SymbolFilterServer
         private static readonly ArgumentsParser ArgumentsParser = new ArgumentsParser();
         private static readonly RedirectParser RedirectParser = new RedirectParser();
 
-        // this holds the white list of DLLs we do not ignore
-        static List<string> dllFilterList = new List<string>();
+        // The allowed PDBs we do *not* ignore
+        private static IReadOnlyList<string> _dllFilterList; // TODO: Move this to IEnumerable
 
         static void Main(string[] args)
         {
             var arguments = ArgumentsParser.Parse(args);
-
-            // load up the dlls
-            InitializeDllFilters();
+            _dllFilterList = arguments.Symbols.ToList();
 
             // open the socket
             StartHttpListener(arguments.Port);
-        }
-
-        static void InitializeDllFilters()
-        {
-            try
-            {
-                // we're just going to throw if it fails...
-                StreamReader sr = new FileInfo("symfilter.txt").OpenText();
-
-                // read lines from the file
-                string line;
-                while ((line = sr.ReadLine()) != null)
-                {
-                    dllFilterList.Add(line.Trim().ToLowerInvariant());
-                }
-
-                sr.Dispose();
-
-            }
-            catch (Exception e)
-            {
-                // anything goes wrong and we're done here, there's no recovery from this
-                Console.WriteLine(e.Message);
-                Environment.Exit(1);
-            }
         }
 
         // Here we will just listen for connections on the loopback adapter, port 8080
@@ -76,14 +49,14 @@ namespace SymbolFilterServer
                 var reqLower = Uri.UnescapeDataString(req).ToLowerInvariant();
 
                 int i;
-                for (i = 0; i < dllFilterList.Count; i++)
+                for (i = 0; i < _dllFilterList.Count; i++)
                 {
-                    if (reqLower.Contains(dllFilterList[i]))
+                    if (reqLower.Contains(_dllFilterList[i]))
                         break;
                 }
 
                 // if we didn't match, or it isn't a GET then serve up a 404
-                if (i == dllFilterList.Count || request.Method != "GET") 
+                if (i == _dllFilterList.Count || request.Method != "GET")
                 {
                     // you don't match, fast exit, this is basically the whole point of this thing
                     Return404(context);
@@ -91,7 +64,7 @@ namespace SymbolFilterServer
                 else
                 {
                     // this is the real work
-                    Console.WriteLine("Matched pattern: {0}", dllFilterList[i]);
+                    Console.WriteLine("Matched pattern: {0}", _dllFilterList[i]);
                     RedirectRequest(context, req);
                 }
             });
