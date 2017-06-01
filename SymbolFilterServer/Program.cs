@@ -1,21 +1,27 @@
 ﻿using Microsoft.AspNetCore.Hosting;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 
 namespace SymbolFilterServer
 {
+    // ReSharper disable once UnusedMember.Global -- Called by CLR
     public class Program
     {
+        // ReSharper disable once UnusedMember.Global -- Called by CLR
         public static void Main(string[] args)
         {
-            Arguments = new ArgumentsParser().Parse(args);
+            var arguments = new ArgumentsParser().Parse(args);
 
             new WebHostBuilder()
                 .UseKestrel()
-                .UseStartup<Startup>()
-                .UseUrls($"http://localhost:{Arguments.Port}")
+                .ConfigureServices(services =>
+                {
+                    services.AddSingleton<IStartup>(new Startup(arguments));
+                })
+                .UseUrls($"http://localhost:{arguments.Port}")
+                .ConfigureLogging(factory => factory.AddConsole())
                 .Build()
                 .Run();
         }
-
-        public static Arguments Arguments { get; private set; } // TODO: Can this be passed into the WebHostBuilder?
     }
 }

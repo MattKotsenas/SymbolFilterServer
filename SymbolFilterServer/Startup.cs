@@ -1,33 +1,29 @@
-﻿using Microsoft.AspNetCore.Builder;
+﻿using System;
+using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
-using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Logging;
 
 namespace SymbolFilterServer
 {
-    public class Startup
+    public class Startup : IStartup
     {
-        public Startup(IHostingEnvironment env)
+        private readonly Arguments _arguments;
+
+        public Startup(Arguments arguments)
         {
-            var builder = new ConfigurationBuilder();
-            Configuration = builder.Build();
+            _arguments = arguments;
         }
 
-        public IConfigurationRoot Configuration { get; }
-
-        public void ConfigureServices(IServiceCollection services)
+        public IServiceProvider ConfigureServices(IServiceCollection services)
         {
             services.AddTransient<RedirectParser>();
-            services.AddSingleton<Arguments>(provider => Program.Arguments);
-            services.AddOptions();
+            services.AddSingleton(_arguments);
+
+            return services.BuildServiceProvider();
         }
 
-        // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
-        public void Configure(IApplicationBuilder app, IHostingEnvironment env, ILoggerFactory loggerFactory)
+        public void Configure(IApplicationBuilder app)
         {
-            loggerFactory.AddConsole();
-
             app.UseMiddleware<SymbolFilterServer>();
         }
     }
