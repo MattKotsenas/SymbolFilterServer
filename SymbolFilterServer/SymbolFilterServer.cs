@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Http;
+using Microsoft.Extensions.Logging;
 
 namespace SymbolFilterServer
 {
@@ -15,7 +16,7 @@ namespace SymbolFilterServer
         }
 
         // ReSharper disable once UnusedMember.Global -- Called by middleware
-        public async Task Invoke(HttpContext context, Arguments args, RedirectParser parser)
+        public async Task Invoke(HttpContext context, Arguments args, RedirectParser parser, ILogger<SymbolFilterServer> logger)
         {
             var symbolFilterList = args.Symbols;
             if (context.Request.Method != "GET")
@@ -31,8 +32,8 @@ namespace SymbolFilterServer
             {
                 if (path.Contains(symbol))
                 {
-                    Console.WriteLine("Matched pattern: {0}", symbol);
-                    MaybeRedirect(context.Response, parser, path);
+                    logger.LogInformation("Matched pattern: {0}", symbol);
+                    MaybeRedirect(context.Response, parser, logger, path);
                     return;
                 }
             }
@@ -46,22 +47,23 @@ namespace SymbolFilterServer
             response.StatusCode = 404;
         }
 
-        private void Respond302(HttpResponse response, string url)
+        private void Respond302(HttpResponse response, ILogger logger, string url)
         {
-            Console.WriteLine("302 Redirect {0}", url);
+            logger.LogInformation("302 redirect to {0}", url);
             response.Redirect(url, false);
         }
 
-        private void MaybeRedirect(HttpResponse response, RedirectParser parser, string req)
+        private void MaybeRedirect(HttpResponse response, RedirectParser parser, ILogger logger, string url)
         {
-            var result = parser.Parse(req);
+            var result = parser.Parse(url);
 
             if (result.IsValid)
             {
-                Respond302(response, result.Redirect);
+                Respond302(response, logger, result.Redirect);
             }
             else
             {
+                logger.LogError("Redirect url {0} was not valid. Returning 404", url);
                 Respond404(response);
             }
         }

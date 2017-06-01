@@ -18,6 +18,7 @@ namespace SymbolFilterServer
         {
             services.AddTransient<RedirectParser>();
             services.AddSingleton(_arguments);
+            services.AddLogging();
 
             return services.BuildServiceProvider();
         }
