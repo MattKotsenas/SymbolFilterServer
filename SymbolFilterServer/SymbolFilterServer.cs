@@ -17,29 +17,26 @@ namespace SymbolFilterServer
         // ReSharper disable once UnusedMember.Global -- Called by middleware
         public async Task Invoke(HttpContext context, Arguments args, RedirectParser parser)
         {
-
             var symbolFilterList = args.Symbols;
-
-            await Task.Run(() =>
+            if (context.Request.Method != "GET")
             {
-                if (context.Request.Method != "GET") { Respond404(context.Response); }
-
-                var path = context.Request.Path.ToString();
-
-                // Avoid case sensitivity issues for matching the pattern
-                path = Uri.UnescapeDataString(path).ToLowerInvariant();
-
-                foreach (var symbol in symbolFilterList)
-                {
-                    if (path.Contains(symbol))
-                    {
-                        Console.WriteLine("Matched pattern: {0}", symbol);
-                        MaybeRedirect(context.Response, parser, path);
-                        return;
-                    }
-                }
                 Respond404(context.Response);
-            });
+            }
+
+            // Avoid case sensitivity issues for matching the pattern
+            var path = context.Request.Path.ToString();
+            path = Uri.UnescapeDataString(path).ToLowerInvariant();
+
+            foreach (var symbol in symbolFilterList)
+            {
+                if (path.Contains(symbol))
+                {
+                    Console.WriteLine("Matched pattern: {0}", symbol);
+                    MaybeRedirect(context.Response, parser, path);
+                    return;
+                }
+            }
+            Respond404(context.Response);
 
             await _next(context);
         }
