@@ -4,7 +4,7 @@ using System.Linq;
 
 namespace SymbolFilterServer
 {
-    internal class ArgumentsParser
+    public class ArgumentsParser
     {
         public Arguments Parse(string[] args)
         {
@@ -22,7 +22,7 @@ namespace SymbolFilterServer
         }
     }
 
-    internal class Arguments
+    public class Arguments
     {
         public Arguments(int port, IEnumerable<string> symbols)
         {

@@ -1,39 +1,25 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Linq;
 using System.Threading.Tasks;
-using Microsoft.AspNetCore.Builder;
-using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
 
 namespace SymbolFilterServer
 {
-    internal class SymbolFilterServer
+    // ReSharper disable once ClassNeverInstantiated.Global -- Instantiated by middleware
+    public class SymbolFilterServer
     {
-        private readonly Arguments _args;
-        private readonly IEnumerable<string> _symbolFilterList; // The allowed PDBs we do *not* ignore
-        private readonly RedirectParser _redirectParser;
+        private readonly RequestDelegate _next;
 
-
-        public SymbolFilterServer(Arguments args, RedirectParser parser)
+        public SymbolFilterServer(RequestDelegate next)
         {
-            _args = args;
-            _symbolFilterList = _args.Symbols.ToList();
-            _redirectParser = parser;
+            _next = next;
         }
 
-        internal void Run()
+        // ReSharper disable once UnusedMember.Global -- Called by middleware
+        public async Task Invoke(HttpContext context, Arguments args, RedirectParser parser)
         {
-            new WebHostBuilder()
-                .UseKestrel()
-                .Configure(app => app.Run(Request))
-                .UseUrls($"http://localhost:{_args.Port}")
-                .Build()
-                .Run();
-        }
 
-        private async Task Request(HttpContext context)
-        {
+            var symbolFilterList = args.Symbols;
+
             await Task.Run(() =>
             {
                 if (context.Request.Method != "GET") { Respond404(context.Response); }
@@ -43,17 +29,19 @@ namespace SymbolFilterServer
                 // Avoid case sensitivity issues for matching the pattern
                 path = Uri.UnescapeDataString(path).ToLowerInvariant();
 
-                foreach (var symbol in _symbolFilterList)
+                foreach (var symbol in symbolFilterList)
                 {
                     if (path.Contains(symbol))
                     {
                         Console.WriteLine("Matched pattern: {0}", symbol);
-                        MaybeRedirect(context.Response, path);
+                        MaybeRedirect(context.Response, parser, path);
                         return;
                     }
                 }
                 Respond404(context.Response);
             });
+
+            await _next(context);
         }
 
         private void Respond404(HttpResponse response)
@@ -67,9 +55,9 @@ namespace SymbolFilterServer
             response.Redirect(url, false);
         }
 
-        private void MaybeRedirect(HttpResponse response, string req)
+        private void MaybeRedirect(HttpResponse response, RedirectParser parser, string req)
         {
-            var result = _redirectParser.Parse(req);
+            var result = parser.Parse(req);
 
             if (result.IsValid)
             {
