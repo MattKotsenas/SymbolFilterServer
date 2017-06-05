@@ -8,6 +8,10 @@ Unfortunately, usually most of the symbols in a trace aren't indexed, and / or a
 
 SymbolFilterServer acts as a fast symbol server proxy, immediately returing `404 Not Found` for any symbol not in your provided allow list, and redirecting matching symbols to the real symbol store.
 
+## How
+
+The simplest way to get started is to download the latest [release][release] from GitHub, unzip, and run `SymbolFilterServer.exe`.
+
 ## Examples
 
 To start, let's say you only want to download the symbols for `edgehtml.dll` from the official Microsoft Symbol Store, and attempts to load any other PDB should be blocked. Instead of having a `_NT_SYMBOL_PATH` that looks like this:
@@ -38,3 +42,4 @@ PS> SymbolFilterServer.exe --port 8080 @my-symbols.txt
 
 [etwtraces]: https://docs.microsoft.com/en-us/windows-hardware/test/wpt/index
 [symsrv]: https://msdn.microsoft.com/en-us/library/windows/desktop/ms681416(v=vs.85).aspx
+[release]: https://github.com/MattKotsenas/SymbolFilterServer/releases/
